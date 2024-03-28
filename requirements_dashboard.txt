@@ -5,6 +5,5 @@ shap
 streamlit
 scikit-learn
 matplotlib
-matplotlib-inline
 plotly
 plotly-express

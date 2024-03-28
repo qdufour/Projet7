@@ -1,5 +1,3 @@
 flask
 pandas
 joblib
-unittest
-json
