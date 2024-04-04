@@ -28,7 +28,7 @@ jobs:
           source venv/bin/activate
       
       - name: Install dependencies
-        run: pip install -r requirements_api.txt
+        run: pip install -r requirements.txt
         
       - name: Run flask api Tests
         run: python -m unittest discover -s ./test -p 'test_api.py'
