@@ -2,3 +2,9 @@ flask
 pandas
 joblib
 scikit-learn
+numpy
+shap
+streamlit
+matplotlib
+plotly
+plotly-express
