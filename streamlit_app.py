@@ -6,6 +6,10 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import requests
+import joblib
+import matplotlib.pyplot as plt
+import shap
+from shap import TreeExplainer
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # Function to make API request and get prediction
@@ -22,12 +26,15 @@ def get_prediction(data):
         return None
 
 def main():
-    df = pd.read_csv('./data/data.csv')
     # Initialize session state
     if 'id' not in st.session_state:
         st.session_state.id = None
         st.session_state.score = None
+        st.session_state.model = joblib.load('data/model.pkl')
+        st.session_state.shap = TreeExplainer(st.session_state.model)
+        st.session_state.df = df = pd.read_csv('./data/data.csv')
 
+    df = st.session_state.df
     st.sidebar.header("Client ID")
     id_client = st.sidebar.selectbox("Sélection du client", df["SK_ID_CURR"])
     
@@ -40,15 +47,17 @@ def main():
 
     if st.session_state.score != None and st.session_state.id == id_client:
         score = st.session_state.score
-        # Titre de l'application
-        st.title("Tableau de Bord Client")
+        threshold = 0.4
+        if score < threshold:
+            st.title("Crédit Refusé")
+        else:
+            st.title("Crédit Accepté")
 
         # Afficher un tableau avec les informations des clients
-        st.write("### Informations du client :")
+        st.write("### Tableau de bord client :")
         st.dataframe(instance)
         
         # Gauge Score
-        threshold = 0.5
         fig = go.Figure(go.Indicator(
             mode="gauge+number+delta",
             value=score,
@@ -77,7 +86,34 @@ def main():
         )
 
         st.plotly_chart(fig)
+
+        # Plot SHAP summary
+        st.write("### Feature Importance Locale")
+        df_shap = df.drop('SK_ID_CURR',axis=1)
+        shap_values = st.session_state.shap.shap_values(df_shap.loc[[example_idx]])
+        shap_values = shap_values[:, :, 1]
+        st.pyplot(shap.summary_plot(shap_values, feature_names=df_shap.columns, max_display=10))
         
+        # Feature Importance Globale
+        st.write("### Feature Importance du Modèle")
+        feature_importances = st.session_state.model.feature_importances_
+        # Get the indices of the features sorted by importance (descending)
+        indices = np.argsort(feature_importances)[::-1]
+
+        # Select the indices of the top 10 features
+        top_10_indices = indices[:10]
+
+        # Plotting the top 10 feature importances vertically
+        plt.figure(figsize=(8, 6))  # Set figure size
+        plt.title('Top 10 Feature Importances')  # Chart title
+        plt.barh(range(len(top_10_indices)), feature_importances[top_10_indices], color='blue', align='center')  # Horizontal bar chart
+        plt.yticks(range(len(top_10_indices)), df_shap.columns[top_10_indices])  # Set y-ticks to feature names
+        plt.gca().invert_yaxis()  # Invert y-axis to have the highest value on top
+        plt.xlabel('Importance')  # X-axis label
+        plt.ylabel('Feature')  # Y-axis label
+        plt.tight_layout()  # Adjust layout
+        st.pyplot(plt)
+
         # Distribution d'une Feature selon les classes
         st.write("### Analyse Univariée")
         selected_feature = st.selectbox("Feature :", df.columns)
